@@ -1,0 +1,151 @@
+// Mode variable (can be set to "test" or "active")
+const MODE = "active"; // Change this value to switch between modes
+
+// Constants for column indices
+const STATUS_COLUMN = 1;
+const TASK_NAME_COLUMN = 7;
+const TASK_DATE_COLUMN = 3;
+const TASK_TIME_COLUMN = 4;
+
+function createTask() {
+    try {
+        var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Masterlist");
+        var data = sheet.getDataRange().getValues();
+        var timeZone = Session.getScriptTimeZone();
+
+        // Fetch current tasks from Google Tasks
+        var currentTasks = Tasks.Tasks.list('@default').items || [];
+        var taskMap = {};  // Store tasks by title and due date for quick lookup
+
+        // Log the total number of tasks retrieved
+        Logger.log(`Total tasks retrieved from Google Tasks: ${currentTasks.length}`);
+
+        // Create a map of tasks using their title and due date
+        currentTasks.forEach(task => {
+            if (task.due) {
+                let adjustedTaskDueDate = new Date(task.due);
+                adjustedTaskDueDate.setDate(adjustedTaskDueDate.getDate() - 1);
+                var taskDueDate = adjustedTaskDueDate.toDateString();
+                var uniqueKey = `${task.title}-${taskDueDate}`;
+                taskMap[uniqueKey] = task.id;
+            }
+        });
+
+        for (var i = 10; i < data.length; i++) {
+            if (!data[i][TASK_NAME_COLUMN]) { // Check if the task name cell is empty
+                Logger.log(`Row ${i + 1} has no task. Stopping.`);
+                break;  // This will stop the loop
+            }
+
+            var taskStatus = data[i][STATUS_COLUMN];
+            var taskName = data[i][TASK_NAME_COLUMN];
+            var taskDate = data[i][TASK_DATE_COLUMN];
+            var taskTime = data[i][TASK_TIME_COLUMN];
+
+            // Log the current row data
+            Logger.log(`Reading row ${i + 1}: Task - ${taskName}, Date - ${taskDate}, Time - ${taskTime}`);
+
+            // Log data types
+            Logger.log(`Type of data on row ${i + 1}: Task - ${typeof taskName}, Date - ${typeof taskDate}, Time - ${typeof taskTime}`);
+
+            // Log the entire row data
+            Logger.log(`Data on row ${i + 1}: ${data[i]}`);
+
+            if (!taskName || !taskDate || !taskTime) {  // Ensure all fields are not empty
+                Logger.log(`Incomplete data on row ${i + 1}. Skipping.`);
+                continue;
+            }
+
+            var taskDateTime = combineDateAndTime(taskDate, taskTime, timeZone);
+            if (!taskDateTime) {
+                Logger.log("Invalid date or time on row " + (i + 1));
+                continue;
+            }
+
+            var uniqueKey = `${taskName}-${taskDateTime.toDateString()}`;
+
+            // Log the unique key for each row
+            Logger.log(`Unique Key for Row ${i + 1}: ${uniqueKey}`);
+
+            // Check if the task already exists
+            if (taskMap[uniqueKey]) {
+                // Log the tasks that are skipped
+                Logger.log(`Skipping. Assignment ${taskName} already exists on ${taskDateTime.toDateString()}`);
+                continue;
+            }
+
+            var taskDetails = {
+                title: taskName,
+                due: taskDateTime.toISOString()
+            };
+
+            // Map Google Sheets status to Google Tasks status
+            switch(taskStatus) {
+                case "Complete":
+                    taskDetails.status = "completed";
+                    break;
+                case "Not Started":
+                    taskDetails.status = "needsAction";
+                    break;
+                // You can add more mappings here if needed
+            }
+
+            // Log the task creation attempt
+            Logger.log(`Attempting to create task ${taskName} due on ${taskDateTime.toDateString()}`);
+
+            // Create the task only if the mode is "active"
+            if (MODE === "active") {
+                Tasks.Tasks.insert(taskDetails, '@default');
+            } else {
+                Logger.log("Test mode is active. No task will be added to Google Tasks.");
+            }
+        }
+    } catch (e) {
+        Logger.log('Error: ' + e.toString());
+    }
+}
+
+function combineDateAndTime(dateObj, timeStr, timeZone) {
+    let date = new Date(dateObj);
+
+    // Convert the time data to a string in HH:MM AM/PM format
+    if (timeStr instanceof Date) {
+        timeStr = Utilities.formatDate(timeStr, timeZone, "hh:mm a");
+    } else if (typeof timeStr !== 'string' || !timeStr.match(/^(\d{1,2}):(\d{2}) (AM|PM)$/)) {
+        Logger.log(`Invalid time format: ${timeStr}`);
+        return null;
+    }
+
+    // Extract hours and minutes from the time string
+    let timeMatch = timeStr.match(/(\d{1,2}):(\d{2}) (\w{2})/);
+
+    let hours = parseInt(timeMatch[1]);
+    let minutes = parseInt(timeMatch[2]);
+    let amPm = timeMatch[3].toLowerCase();
+
+    if ((amPm === "am" && (hours < 1 || hours > 12)) || 
+        (amPm === "pm" && (hours < 1 || hours > 12))) {
+        Logger.log(`Invalid hour in time: ${hours}`);
+        return null;
+    }
+
+    if (amPm === "pm" && hours !== 12) {
+        hours += 12;
+    } else if (amPm === "am" && hours === 12) {
+        hours = 0;
+    }
+
+    date.setHours(hours);
+    date.setMinutes(minutes);
+    date.setSeconds(0);
+    date.setMilliseconds(0);
+
+    // Subtract 1 day from the date
+    date.setDate(date.getDate());
+
+    // Adjust to make the date UTC midnight of the desired day
+    let offsetMinutes = date.getTimezoneOffset(); // get timezone offset in minutes
+    date.setMinutes(date.getMinutes() - offsetMinutes);
+
+    return date;
+}
