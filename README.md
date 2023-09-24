@@ -1,50 +1,53 @@
 # Sheets to Tasks Assignment Sync
-
 Synchronize your Google Sheets assignments with Google Tasks seamlessly.
 
 ## Introduction
-
-This Google Apps Script allows you to automatically synchronize assignments listed in a specific [Google Sheets template](https://docs.google.com/spreadsheets/d/1ALoho_3oHCHn7qsL3HuwOTkCWu2Rz3ZojE3SVflN65c/edit?usp=drive_link) to Google Tasks. Any task added to the sheet is added to Google Tasks if it doesn't already exist there, ensuring you never miss out on a task.
+This Google Apps Script synchronizes assignments listed in a specific Google Sheets template to Google Tasks. Any task added to the sheet will be automatically added to Google Tasks based on the mode set in the script.
 
 ## Features
-
-- 🔄 **Auto-Sync**: The script will check if the task already exists on Google Tasks. If not, it will add the task.
-- 🌍 **Timezone Aware**: The script considers your Google account's timezone when creating tasks.
-- 🛠 **Customizable Mode**: Switch between "test" mode (no tasks are added to Google Tasks, but logs will show the action) and "active" mode (tasks are added to Google Tasks).
+- **🔄 Auto-Sync**: If the task doesn't already exist on Google Tasks, it's added.
+- **🌍 Timezone Aware**: The script respects your Google account's timezone when creating tasks.
+- **🛠 Modes**: There are three modes you can use:
+  - "test": Logs actions but doesn't add or delete tasks on Google Tasks.
+  - "active" (work in progress): Adds and updates tasks based on the Google Sheets data.
+  - "manual": Deletes all existing tasks and creates them from scratch based on the Google Sheets data.
 
 ## Prerequisites
-
-- Access to [this assignment template on Google Sheets](https://docs.google.com/spreadsheets/d/1ALoho_3oHCHn7qsL3HuwOTkCWu2Rz3ZojE3SVflN65c/edit?usp=drive_link). It's essential to use this specific template for the script to function correctly.
-- Google Apps Script environment to run the provided script.
+- [Assignment template on Google Sheets](https://docs.google.com/spreadsheets/d/1ALoho_3oHCHn7qsL3HuwOTkCWu2Rz3ZojE3SVflN65c/edit?usp=drive_link). **You must use this specific template for the script to function correctly.**
+- Google Apps Script environment to run the script.
 
 ## Setup
 
-1. **Google Sheets Template**: Start by making a copy of [this assignment template](https://docs.google.com/spreadsheets/d/1ALoho_3oHCHn7qsL3HuwOTkCWu2Rz3ZojE3SVflN65c/edit?usp=drive_link).
+### Google Sheets Template:
+1. Make a copy of the [assignment template](https://docs.google.com/spreadsheets/d/1ALoho_3oHCHn7qsL3HuwOTkCWu2Rz3ZojE3SVflN65c/edit?usp=drive_link).
 
-2. **Google Apps Script**:
-   - Open your Google Sheets template.
-   - Click on `Extensions` > `Apps Script`.
-   - Delete any code in the script editor and replace with the provided script.
-   - Click on the disk icon or `File` > `Save` to save.
+### Google Apps Script:
+2. Open your copied Google Sheets template.
+3. Navigate to `Extensions` > `Apps Script`.
+4. Erase any existing code in the script editor and paste in the provided script.
+5. Save your changes.
 
-3. **Select Mode**: 
-   - In the script, change the value of the `MODE` constant to either "test" or "active" depending on your requirement.
-     - "test" Mode: This won't create any tasks in Google Tasks, but you'll see logs of the actions.
-     - "active" Mode: This will create tasks in Google Tasks based on the assignments in your Google Sheets.
+### Select Mode:
+6. In the script, adjust the value of the `MODE` constant to your desired mode: "test", "active", or "manual".
 
-4. **Permissions**:
-   - The first time you run the script, you will be prompted to grant permissions. This is necessary for the script to read your Google Sheets data and manage your Google Tasks. Make sure to allow the necessary permissions.
+### Permissions:
+7. The first time you execute the script, it will request permissions. Grant them to enable the script to read your Google Sheets data and handle your Google Tasks.
 
-5. **Running the Script**: 
-   - Go back to the Google Apps Script environment and run the `createTask` function.
+### Running the Script:
+8. Go back to the Google Apps Script environment.
+9. Execute the `createTask` function.
 
-6. **Scheduling (Optional)**:
-   - If you wish to run this script automatically at regular intervals, you can set up triggers in the Google Apps Script environment.
+### Automatic Synchronization on Edit (Optional):
+You can set up the script to run automatically when you make an edit to the Google Sheet.
+
+1. In the Google Apps Script environment, click on the left sidebar's clock icon to access triggers.
+2. Click on `+ Add Trigger` at the bottom-right.
+3. For the function to run, select `createTask`.
+4. For the event source, select `From form > On edit`.
+5. Save the trigger. Now, whenever you edit the Google Sheet, the script will run.
 
 ## Support
-
-Should you run into any issues or have suggestions for improvements, please file an issue in this GitHub project.
+For issues or suggestions, please open an issue in this GitHub repository.
 
 ## Conclusion
-
-This script ensures you're always on top of your assignments by seamlessly syncing them with Google Tasks. No more missed tasks or manual data entry required. Just add your assignments to the Google Sheet, and let the script do its magic!
+Stay on top of your assignments by syncing them with Google Tasks automatically. Just populate your assignments in the Google Sheet and let the script handle the rest!
