@@ -43,7 +43,7 @@ You can set up the script to run automatically when you make an edit to the Goog
 1. In the Google Apps Script environment, click on the left sidebar's clock icon to access triggers.
 2. Click on `+ Add Trigger` at the bottom-right.
 3. For the function to run, select `createTask`.
-4. For the event source, select `From form > On edit`.
+4. For the event source, select `From form` > `On edit`.
 5. Save the trigger. Now, whenever you edit the Google Sheet, the script will run.
 
 ## Support
