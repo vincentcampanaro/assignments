@@ -74,6 +74,13 @@ function createTask() {
 
             // Extract task details from the current row
             var taskStatus = data[i][STATUS_COLUMN];
+
+            // Skip the task if it's marked as "Complete" in the spreadsheet
+            if (taskStatus === "Complete") {
+                Logger.log(`Row ${i + 1}: Task marked as Complete. Skipping.`);
+                continue;
+            }
+
             var taskName = data[i][TASK_NAME_COLUMN];
             var taskDate = data[i][TASK_DATE_COLUMN];
             var taskTime = data[i][TASK_TIME_COLUMN];
@@ -208,6 +215,7 @@ function combineDateAndTime(dateObj, timeStr, timeZone) {
     date.setSeconds(0);
     date.setMilliseconds(0);
 
+    // Subtract 1 day from the date
     date.setDate(date.getDate());
 
     // Adjust to make the date UTC midnight of the desired day
