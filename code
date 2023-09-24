@@ -7,6 +7,9 @@ const TASK_NAME_COLUMN = 7;
 const TASK_DATE_COLUMN = 3;
 const TASK_TIME_COLUMN = 4;
 
+// Cooldown time in minutes
+const COOLDOWN_MINUTES = 0.5;  // Change this value to adjust the cooldown time
+
 // Function to get or create the "Assignments" list in Google Tasks
 function getOrCreateAssignmentsList() {
     let tasklists = Tasks.Tasklists.list();
@@ -34,6 +37,18 @@ function getOrCreateAssignmentsList() {
 // Function to create tasks in Google Tasks based on the spreadsheet data
 function createTask() {
     try {
+        // Check cooldown
+        let now = new Date().getTime();
+        let lastExecutionTime = PropertiesService.getScriptProperties().getProperty('lastExecutionTime');
+        if (lastExecutionTime) {
+            let timeSinceLastExecution = (now - parseInt(lastExecutionTime)) / (1000 * 60);
+            if (timeSinceLastExecution < COOLDOWN_MINUTES) {
+                Logger.log(`Execution blocked due to cooldown. Please wait ${COOLDOWN_MINUTES - timeSinceLastExecution} more minutes.`);
+                return;
+            }
+        }
+        PropertiesService.getScriptProperties().setProperty('lastExecutionTime', now.toString());
+
         // If mode is manual, delete all existing tasks before creating new ones
         if (MODE === "manual") {
             deleteAllTasks();  
@@ -215,7 +230,6 @@ function combineDateAndTime(dateObj, timeStr, timeZone) {
     date.setSeconds(0);
     date.setMilliseconds(0);
 
-    // Subtract 1 day from the date
     date.setDate(date.getDate());
 
     // Adjust to make the date UTC midnight of the desired day
