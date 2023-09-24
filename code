@@ -1,26 +1,60 @@
-// Mode variable (can be set to "test" or "active")
-const MODE = "active"; // Change this value to switch between modes
+// Mode for controlling the script behavior ("test", "active", or "manual")
+const MODE = "manual"; 
 
-// Constants for column indices
+// Constants representing the columns in the spreadsheet
 const STATUS_COLUMN = 1;
 const TASK_NAME_COLUMN = 7;
 const TASK_DATE_COLUMN = 3;
 const TASK_TIME_COLUMN = 4;
 
+// Function to get or create the "Assignments" list in Google Tasks
+function getOrCreateAssignmentsList() {
+    let tasklists = Tasks.Tasklists.list();
+    let assignmentsListId = null;
+
+    // Check if "Assignments" list already exists
+    if (tasklists.items) {
+        for (let list of tasklists.items) {
+            if (list.title === "Assignments") {
+                assignmentsListId = list.id;
+                break;
+            }
+        }
+    }
+
+    // If the list doesn't exist, create it
+    if (!assignmentsListId) {
+        let newList = Tasks.Tasklists.insert({title: "Assignments"});
+        assignmentsListId = newList.id;
+    }
+
+    return assignmentsListId;
+}
+
+// Function to create tasks in Google Tasks based on the spreadsheet data
 function createTask() {
     try {
+        // If mode is manual, delete all existing tasks before creating new ones
+        if (MODE === "manual") {
+            deleteAllTasks();  
+        }
+
+        // Access the spreadsheet and fetch data
         var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Masterlist");
         var data = sheet.getDataRange().getValues();
         var timeZone = Session.getScriptTimeZone();
 
-        // Fetch current tasks from Google Tasks
-        var currentTasks = Tasks.Tasks.list('@default').items || [];
-        var taskMap = {};  // Store tasks by title and due date for quick lookup
+        // Get the ID of the "Assignments" list
+        let assignmentsListId = getOrCreateAssignmentsList();
 
-        // Log the total number of tasks retrieved
+        // Fetch existing tasks in the "Assignments" list
+        var currentTasks = Tasks.Tasks.list(assignmentsListId).items || [];
+        var taskMap = {};
+
+        // Logging for debugging purposes
         Logger.log(`Total tasks retrieved from Google Tasks: ${currentTasks.length}`);
 
-        // Create a map of tasks using their title and due date
+        // Create a map of tasks using their title and due date for quick lookup
         currentTasks.forEach(task => {
             if (task.due) {
                 let adjustedTaskDueDate = new Date(task.due);
@@ -31,55 +65,54 @@ function createTask() {
             }
         });
 
+        // Process each row in the spreadsheet data
         for (var i = 10; i < data.length; i++) {
-            if (!data[i][TASK_NAME_COLUMN]) { // Check if the task name cell is empty
+            if (!data[i][TASK_NAME_COLUMN]) { 
                 Logger.log(`Row ${i + 1} has no task. Stopping.`);
-                break;  // This will stop the loop
+                break;  
             }
 
+            // Extract task details from the current row
             var taskStatus = data[i][STATUS_COLUMN];
             var taskName = data[i][TASK_NAME_COLUMN];
             var taskDate = data[i][TASK_DATE_COLUMN];
             var taskTime = data[i][TASK_TIME_COLUMN];
 
-            // Log the current row data
+            // Logging for debugging purposes
             Logger.log(`Reading row ${i + 1}: Task - ${taskName}, Date - ${taskDate}, Time - ${taskTime}`);
-
-            // Log data types
             Logger.log(`Type of data on row ${i + 1}: Task - ${typeof taskName}, Date - ${typeof taskDate}, Time - ${typeof taskTime}`);
-
-            // Log the entire row data
             Logger.log(`Data on row ${i + 1}: ${data[i]}`);
 
-            if (!taskName || !taskDate || !taskTime) {  // Ensure all fields are not empty
+            // Check if all the required data is present in the row
+            if (!taskName || !taskDate || !taskTime) {  
                 Logger.log(`Incomplete data on row ${i + 1}. Skipping.`);
                 continue;
             }
 
+            // Combine the date and time for the task
             var taskDateTime = combineDateAndTime(taskDate, taskTime, timeZone);
             if (!taskDateTime) {
                 Logger.log("Invalid date or time on row " + (i + 1));
                 continue;
             }
 
+            // Create a unique identifier for the task based on its name and date
             var uniqueKey = `${taskName}-${taskDateTime.toDateString()}`;
-
-            // Log the unique key for each row
             Logger.log(`Unique Key for Row ${i + 1}: ${uniqueKey}`);
 
-            // Check if the task already exists
+            // If the task already exists in Google Tasks, skip it
             if (taskMap[uniqueKey]) {
-                // Log the tasks that are skipped
                 Logger.log(`Skipping. Assignment ${taskName} already exists on ${taskDateTime.toDateString()}`);
                 continue;
             }
 
+            // Construct the task details
             var taskDetails = {
                 title: taskName,
                 due: taskDateTime.toISOString()
             };
 
-            // Map Google Sheets status to Google Tasks status
+            // Determine the status of the task based on the spreadsheet data
             switch(taskStatus) {
                 case "Complete":
                     taskDetails.status = "completed";
@@ -87,22 +120,57 @@ function createTask() {
                 case "Not Started":
                     taskDetails.status = "needsAction";
                     break;
-                // You can add more mappings here if needed
             }
 
-            // Log the task creation attempt
+            // Logging for debugging purposes
             Logger.log(`Attempting to create task ${taskName} due on ${taskDateTime.toDateString()}`);
 
-            // Create the task only if the mode is "active"
-            if (MODE === "active") {
-                Tasks.Tasks.insert(taskDetails, '@default');
+            // Create the task in Google Tasks if the mode is not "test"
+            if (MODE !== "test") {
+                Tasks.Tasks.insert(taskDetails, assignmentsListId);
             } else {
                 Logger.log("Test mode is active. No task will be added to Google Tasks.");
             }
         }
     } catch (e) {
+        // Log any errors encountered during execution
         Logger.log('Error: ' + e.toString());
     }
+}
+
+// Function to delete all tasks from the "Assignments" list in Google Tasks
+function deleteAllTasks() {
+    let deletedCount = 0; 
+
+    // Get the ID of the "Assignments" list
+    let assignmentsListId = getOrCreateAssignmentsList();
+
+    // Loop until all tasks are deleted
+    while (true) {
+        var currentTasks = Tasks.Tasks.list(assignmentsListId).items || [];
+        if (currentTasks.length === 0) {
+            break;
+        }
+
+        // Delete all tasks if the mode is not "test"
+        if (MODE !== "test") {
+            for (var i = 0; i < currentTasks.length; i++) {
+                try {
+                    Logger.log(`Attempting to delete task with ID: ${currentTasks[i].id} and title: ${currentTasks[i].title}`);
+                    Tasks.Tasks.remove('@default', currentTasks[i].id);
+                    deletedCount++;
+                    Logger.log(`Successfully deleted task with ID: ${currentTasks[i].id}`);
+                } catch (e) {
+                    Logger.log(`Error deleting task with ID: ${currentTasks[i].id}. Error message: ${e.toString()}`);
+                }
+            }
+        } else {
+            Logger.log("Test mode is active. No tasks will be deleted.");
+            break; // If in test mode, break the loop to avoid infinite iterations
+        }
+    }
+
+    Logger.log(`Total tasks deleted: ${deletedCount}`);
 }
 
 function combineDateAndTime(dateObj, timeStr, timeZone) {
@@ -140,7 +208,6 @@ function combineDateAndTime(dateObj, timeStr, timeZone) {
     date.setSeconds(0);
     date.setMilliseconds(0);
 
-    // Subtract 1 day from the date
     date.setDate(date.getDate());
 
     // Adjust to make the date UTC midnight of the desired day
