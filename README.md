@@ -7,6 +7,7 @@ This Google Apps Script synchronizes assignments listed in a specific Google She
 ## Features
 - **🔄 Auto-Sync**: If the task doesn't already exist on Google Tasks, it's added.
 - **🌍 Timezone Aware**: The script respects your Google account's timezone when creating tasks.
+- **🧊 Cooldown System**: Customizable cooldown variable to minimize frequent trigger executions and quota consumption (especially valuable for "on Edit" synchronization).
 - **🛠 Modes**: There are three modes you can use:
   - "test": Logs actions but doesn't add or delete tasks on Google Tasks.
   - "active" (work in progress): Adds and updates tasks based on the Google Sheets data.
